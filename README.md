@@ -18,7 +18,6 @@ Features
  - Automatically detect fine-grained dependencies between patches
    based on the lines they modify.
  - Show which patch modifies which files.
- - Show which patch last modified which line (*i.e.* blame).
  - Output depedencies as:
     * A list
     * A textual matrix

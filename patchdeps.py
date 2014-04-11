@@ -209,11 +209,6 @@ class ByFileAnalyzer(object):
 
                 touches_file[f.path].append(patch)
 
-        if 'blame' in args.actions:
-            for f, ps in touches_file.items():
-                patch = ps[-1]
-                print("{!s:80} {}".format(str(patch)[:80], f))
-
         return depends
 
 class ByLineAnalyzer(object):
@@ -237,10 +232,6 @@ class ByLineAnalyzer(object):
                     state[f.path] = ByLineFileAnalyzer(f.path, args.proximity)
 
                 state[f.path].analyze(depends, patch, f)
-
-        if 'blame' in args.actions:
-            for a in state.values():
-                a.print_blame()
 
         return depends
 
@@ -467,29 +458,6 @@ class ByLineFileAnalyzer(object):
                     i += 1
                     lineno += 1
 
-    def print_blame(self):
-        print("{}:".format(self.fname))
-        next_line = None
-        for line_state in self.line_list:
-            if line_state.line is None:
-                continue
-
-            if next_line and line_state.lineno != next_line:
-                for _ in range(3):
-                    print("{:50}    .".format(""))
-
-            patch = line_state.changed_by
-            # For lines that only appeared as context
-            if not patch:
-                patch = ""
-
-            print("{:50} {:4} {}".format(str(patch)[:50],
-                                         line_state.lineno,
-                                         line_state.line))
-            next_line = line_state.lineno + 1
-
-        print()
-
     class LineState(object):
         """ State of a particular line in a file """
         def __init__(self, lineno, line = None, changed_by = None):
@@ -536,11 +504,6 @@ def main():
                         Randomize the graph layout produced by
                         --depends-dot and --depends-xdot.""")
     actions = parser.add_argument_group('actions')
-    actions.add_argument('--blame', dest='actions', action='append_const',
-                        const='blame', help="""
-                        Instead of outputting patch dependencies,
-                        output for each line or file which patch changed
-                        it last.""")
     actions.add_argument('--depends-list', dest='actions', action='append_const',
                         const='depends-list', help="""
                         Output a list of each patch and the patches it
