@@ -1,8 +1,8 @@
-`patchdeps`
-===========
+`git-patchdeps`
+===============
 Tool for analyzing textual dependencies within a patch series.
 
-Given a pile of patches, `patchdeps` can find out which patch modifies
+Given a pile of patches, `git-patchdeps` can find out which patch modifies
 which files and lines within those files. From there, it can detect that
 a specific patch modifies a line introduced by an earlier patch, and
 mark these patches as dependent.
@@ -38,15 +38,19 @@ Furthermore, this tool needs a proper series of patches that are known
 to apply cleanly. Since it works without the original files and even
 without doing the magic patch uses (offset and fuzziness) to find out
 how to apply a patch, it must assume that the line numbers in the patch
-are correct and works solely from that. `patchdeps` does do some
+are correct and works solely from that. `git-patchdeps` does do some
 verification of the line contents it does have (mostly from context
 lines) and will yell at you if it detects a problem, but it might not
 catch these problems always...
 
-Running patchdeps
------------------
-Patchdeps supports a number of commandline parameters, which are
-explained when running `patchdeps --help`.
+Running git-patchdeps
+---------------------
+It is recommended to rename `git-patchdeps.py` to `get-patchdeps` and
+place it in your `PATH`. This way it can be invoked as a `git`
+subcommand.
+
+Git-patchdeps supports a number of commandline parameters, which are
+explained when running `git patchdeps --help`.
 
 Examples
 --------
@@ -58,7 +62,7 @@ means the later patch changes a line within two lines of a line changed
 by the earlier patch (number of lines can be configured with the
 `--proximity` flag).
 
-	$ patchdeps 6643668..c496aed -o list
+	$ git patchdeps 6643668..c496aed -o list
 	b4f0a76 (staging: dwc2: unshift non-bool register value constants) depends on: 
 	  22cbead (staging: dwc2: add helper variable to simplify code) (hard)
 	26f69bb (staging: dwc2: simplify register shift expressions) depends on: 
@@ -78,7 +82,7 @@ by the earlier patch (number of lines can be configured with the
 	  aad6d16 (staging: dwc2: interpret all hwcfg and related register at init time) (proximity)
 
 
-	$ patchdeps 6643668..c496aed
+	$ git patchdeps 6643668..c496aed
 	7e69236 (staging: dwc2: use dwc2_hcd_get_frame_number where possible)                                                 
 	22cbead (staging: dwc2: add helper variable to simplify code)                           X                             
 	b4f0a76 (staging: dwc2: unshift non-bool register value constants)  --------------------'     *           X           
@@ -102,7 +106,7 @@ but as you can see below, it is not so useful for this example (since
 there are only a handful of files in the driver, pretty much every patch
 depends on every other patch:
 
-	$ patchdeps 6643668..c496aed --by-file
+	$ git patchdeps 6643668..c496aed --by-file
 	7e69236 (staging: dwc2: use dwc2_hcd_get_frame_number where possible)                 X X   X X   X X X X X X   X     
 	22cbead (staging: dwc2: add helper variable to simplify code)  -----------------------' X   | X   | | | | X |   |     
 	b4f0a76 (staging: dwc2: unshift non-bool register value constants)  --------------------' X X X X X X X X X X   X     
