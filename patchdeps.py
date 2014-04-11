@@ -474,13 +474,8 @@ class ByLineFileAnalyzer(object):
 
 def main():
     parser = argparse.ArgumentParser(description='Analyze patches for dependencies.')
-    types = parser.add_argument_group('type').add_mutually_exclusive_group(required=True)
-    types.add_argument('--git', dest='changeset_type', action='store_const',
-                   const=GitRev, default=None,
-                   help='Analyze a list of git revisions (non-option arguments are passed git git rev-list as-is')
-    types.add_argument('--patches', dest='changeset_type', action='store_const',
-                   const=PatchFile, default=None,
-                   help='Analyze a list of patch files (non-option arguments are patch filenames')
+    parser.add_argument('--type', choices=['git', 'patches'], default='git',
+                        help="""Input type""")
     parser.add_argument('arguments', metavar="ARG", nargs='+', help="""
                         Specification of patches to analyze, depending
                         on the type given. When --git is given, this is
@@ -503,44 +498,34 @@ def main():
     parser.add_argument('--randomize', action='store_true', help="""
                         Randomize the graph layout produced by
                         --depends-dot and --depends-xdot.""")
-    actions = parser.add_argument_group('actions')
-    actions.add_argument('--depends-list', dest='actions', action='append_const',
-                        const='depends-list', help="""
-                        Output a list of each patch and the patches it
-                        depends on.""")
-    actions.add_argument('--depends-matrix', dest='actions', action='append_const',
-                        const='depends-matrix', help="""
-                        Output a matrix with patches on both axis and
-                        markings for dependencies. This is used if not
-                        action is given.""")
-    actions.add_argument('--depends-dot', dest='actions', action='append_const',
-                        const='depends-dot', help="""
-                        Output dot format for a dependency graph.""")
-    actions.add_argument('--depends-xdot', dest='actions', action='append_const',
-                        const='depends-xdot', help="""
-                        Show a dependencygraph using xdot (if available).""")
+    parser.add_argument('--output', '-o', default='matrix',
+                        choices=['list', 'matrix', 'dot', 'xdot'],
+                        help="""Output format""")
 
     args = parser.parse_args()
-    if not args.actions:
-        args.actions = ['depends-matrix']
 
-    patches = list(args.changeset_type.get_changesets(args.arguments))
+    if args.type == 'patches':
+        changeset_type = PatchFile
+    else:
+        changeset_type = GitRev
+
+    patches = list(changeset_type.get_changesets(args.arguments))
 
     for i, p in enumerate(patches):
         p.number = i
 
     depends = args.analyzer().analyze(args, patches)
 
-    if 'depends-list' in args.actions:
+    if args.output == 'list':
         print_depends(patches, depends)
 
-    if 'depends-matrix' in args.actions:
+    elif args.output == 'matrix':
         print_depends_matrix(patches, depends)
 
-    if 'depends-dot' in args.actions:
+    elif args.output == 'dot':
         print(depends_dot(args, patches, depends))
 
-    if 'depends-xdot' in args.actions:
+    elif args.output == 'xdot':
         show_xdot(depends_dot(args, patches, depends))
 
 if __name__ == "__main__":

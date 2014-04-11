@@ -58,7 +58,7 @@ means the later patch changes a line within two lines of a line changed
 by the earlier patch (number of lines can be configured with the
 `--proximity` flag).
 
-	$ patchdeps --git 6643668..c496aed --depends-list --depends-matrix
+	$ patchdeps 6643668..c496aed -o list
 	b4f0a76 (staging: dwc2: unshift non-bool register value constants) depends on: 
 	  22cbead (staging: dwc2: add helper variable to simplify code) (hard)
 	26f69bb (staging: dwc2: simplify register shift expressions) depends on: 
@@ -78,6 +78,7 @@ by the earlier patch (number of lines can be configured with the
 	  aad6d16 (staging: dwc2: interpret all hwcfg and related register at init time) (proximity)
 
 
+	$ patchdeps 6643668..c496aed
 	7e69236 (staging: dwc2: use dwc2_hcd_get_frame_number where possible)                                                 
 	22cbead (staging: dwc2: add helper variable to simplify code)                           X                             
 	b4f0a76 (staging: dwc2: unshift non-bool register value constants)  --------------------'     *           X           
@@ -101,7 +102,7 @@ but as you can see below, it is not so useful for this example (since
 there are only a handful of files in the driver, pretty much every patch
 depends on every other patch:
 
-	$ patchdeps --git 6643668..c496aed --depends-matrix --by-file
+	$ patchdeps 6643668..c496aed --by-file
 	7e69236 (staging: dwc2: use dwc2_hcd_get_frame_number where possible)                 X X   X X   X X X X X X   X     
 	22cbead (staging: dwc2: add helper variable to simplify code)  -----------------------' X   | X   | | | | X |   |     
 	b4f0a76 (staging: dwc2: unshift non-bool register value constants)  --------------------' X X X X X X X X X X   X     
