@@ -128,6 +128,7 @@ depends on every other patch:
 Copyright & License
 -------------------
 © 2013 Matthijs Kooijman <<matthijs@stdin.nl>>
+© 2014 Tobias Bengfort <<tobias.bengfort@gmx.net>>
 
 Patchdeps is made available under the MIT license
 

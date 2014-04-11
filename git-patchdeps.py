@@ -2,6 +2,7 @@
 
 # Copyright (c) 2012 Matias Bordese
 # Copyright (c) 2013 Matthijs Kooijman <matthijs@stdin.nl>
+# Copyright (c) 2014 Tobias Bengfort <tobias.bengfort@gmx.net>
 #
 # Permission is hereby granted, free of charge, to any person obtaining
 # a copy of this software and associated documentation files (the
