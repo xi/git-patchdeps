@@ -513,7 +513,7 @@ def main():
     types.add_argument('--patches', dest='changeset_type', action='store_const',
                    const=PatchFile, default=None,
                    help='Analyze a list of patch files (non-option arguments are patch filenames')
-    parser.add_argument('arguments', metavar="ARG", nargs='*', help="""
+    parser.add_argument('arguments', metavar="ARG", nargs='+', help="""
                         Specification of patches to analyze, depending
                         on the type given. When --git is given, this is
                         passed to git rev-list as-is (so use a valid
