@@ -27,15 +27,20 @@
 # dependencies between them. Inspired by the similar (but more limited)
 # perl script published at
 # http://blog.mozilla.org/sfink/2012/01/05/patch-queue-dependencies/
-#
 
 """Unified diff parser module."""
 
 # This file is based on the unidiff library by Matías Bordese (at
 # https://github.com/matiasb/python-unidiff)
 
-import re
+import argparse
+import collections
 import itertools
+import os
+import re
+import subprocess
+import sys
+import textwrap
 
 RE_SOURCE_FILENAME = re.compile(r'^--- (?P<filename>[^\t]+)')
 RE_TARGET_FILENAME = re.compile(r'^\+\+\+ (?P<filename>[^\t]+)')
@@ -50,22 +55,21 @@ RE_HUNK_HEADER = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))?\ @@")
 RE_HUNK_BODY_LINE = re.compile(r'^([- \+\\])')
 
 LINE_TYPE_ADD = '+'
-LINE_TYPE_DELETE= '-'
+LINE_TYPE_DELETE = '-'
 LINE_TYPE_CONTEXT = ' '
+
 
 class UnidiffParseException(Exception):
     pass
 
-class Change(object):
-    """
-    A single line from a patch hunk.
-    """
+
+class Change:
+    """A single line from a patch hunk."""
+
     def __init__(self, hunk, action, source_lineno_rel, source_line,
                  target_lineno_rel, target_line):
-        """
-        The line numbers must always be present, either source_line or
-        target_line can be None depending on the action.
-        """
+        # The line numbers must always be present, either source_line or
+        # target_line can be None depending on the action.
         self.hunk = hunk
         self.action = action
         self.source_lineno_rel = source_lineno_rel
@@ -73,14 +77,15 @@ class Change(object):
         self.target_lineno_rel = target_lineno_rel
         self.target_line = target_line
 
-        self.source_lineno_abs =  self.hunk.source_start + self.source_lineno_rel
-        self.target_lineno_abs =  self.hunk.target_start + self.target_lineno_rel
+        self.source_lineno_abs = self.hunk.source_start + self.source_lineno_rel
+        self.target_lineno_abs = self.hunk.target_start + self.target_lineno_rel
 
     def __str__(self):
         return "(-%s, +%s) %s%s" % (self.source_lineno_abs,
                                     self.target_lineno_abs,
                                     self.action,
                                     self.source_line or self.target_line)
+
 
 class PatchedFile(list):
     """Data from a patched file."""
@@ -98,7 +103,8 @@ class PatchedFile(list):
         else:
             self.path = self.source_file
 
-class Hunk(object):
+
+class Hunk:
     """Each of the modified blocks of a file."""
 
     def __init__(self, src_start=0, src_len=0, tgt_start=0, tgt_len=0):
@@ -114,9 +120,7 @@ class Hunk(object):
         return self.to_parse == [0, 0]
 
     def append_change(self, change):
-        """
-        Append a Change
-        """
+        """Append a Change."""
         self.changes.append(change)
 
         if (change.action == LINE_TYPE_CONTEXT or
@@ -140,8 +144,6 @@ class Hunk(object):
 
 def _parse_hunk(diff, source_start, source_len, target_start, target_len):
     hunk = Hunk(source_start, source_len, target_start, target_len)
-    modified = 0
-    deleting = 0
     source_lineno = 0
     target_lineno = 0
 
@@ -151,12 +153,12 @@ def _parse_hunk(diff, source_start, source_len, target_start, target_len):
             action = valid_line.group(0)
             original_line = line[1:]
 
-            kwargs = dict(action = action,
-                          hunk = hunk,
-                          source_lineno_rel = source_lineno,
-                          target_lineno_rel = target_lineno,
-                          source_line = None,
-                          target_line = None)
+            kwargs = dict(action=action,
+                          hunk=hunk,
+                          source_lineno_rel=source_lineno,
+                          target_lineno_rel=target_lineno,
+                          source_line=None,
+                          target_line=None)
 
             if action == LINE_TYPE_ADD:
                 kwargs['target_line'] = original_line
@@ -216,34 +218,20 @@ def parse_diff(diff):
     return ret
 
 
-import os
-import sys
-import argparse
-import textwrap
-import itertools
-import subprocess
-import collections
-
-# from parser import parse_diff
-# from parser import LINE_TYPE_ADD, LINE_TYPE_DELETE, LINE_TYPE_CONTEXT
-
 class Bunch:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)
 
+
 class Changeset():
     def get_patch_set(self):
-        """
-        Returns this changeset as a list of PatchedFiles.
-        """
+        """Return this changeset as a list of PatchedFiles."""
         return parse_diff(self.get_diff())
 
     def get_diff(self):
-        """
-        Returns the textual unified diff for this changeset as an
-        iterable of lines
-        """
+        """Return the textual unified diff as an iterable of lines."""
         raise NotImplementedError
+
 
 class PatchFile(Changeset):
     def __init__(self, filename):
@@ -257,14 +245,13 @@ class PatchFile(Changeset):
 
     @staticmethod
     def get_changesets(args):
-        """
-        Generate Changeset objects, given patch filenamesk
-        """
+        """Generate Changeset objects, given patch filenamesk."""
         for filename in args:
             yield PatchFile(filename)
 
     def __str__(self):
         return os.path.basename(self.filename)
+
 
 class GitRev(Changeset):
     def __init__(self, rev, msg):
@@ -283,9 +270,7 @@ class GitRev(Changeset):
 
     @staticmethod
     def get_changesets(args):
-        """
-        Generate Changeset objects, given arguments for git rev-list.
-        """
+        """Generate Changeset objects, given arguments for git rev-list."""
         output = subprocess.check_output(['git', 'rev-list', '--oneline', '--reverse'] + args)
 
         if not output:
@@ -295,6 +280,7 @@ class GitRev(Changeset):
 
             for line in lines:
                 yield GitRev(*line.split(' ', 1))
+
 
 def print_depends(patches, depends):
     for p in patches:
@@ -308,6 +294,7 @@ def print_depends(patches, depends):
                     print("  %s (%s)" % (dep, desc))
                 else:
                     print("  %s" % dep)
+
 
 def print_depends_matrix(patches, depends):
     # Which patches have at least one dependency drawn (and thus
@@ -336,13 +323,13 @@ def print_depends_matrix(patches, depends):
 
         print(line)
 
+
 def dot_escape_string(s):
     return s.replace("\\", "\\\\").replace("\"", "\\\"")
 
+
 def depends_dot(args, patches, depends):
-    """
-    Returns dot code for the dependency graph.
-    """
+    """Return dot code for the dependency graph."""
     # Seems that fdp gives the best clustering if patches are often
     # independent
     res = """
@@ -366,19 +353,18 @@ overlap=scale
 
     return res
 
+
 def show_xdot(dot):
-    """
-    Shows a given dot graph in xdot
-    """
+    """Show a given dot graph in xdot."""
     p = subprocess.Popen(['xdot', '/dev/stdin'], stdin=subprocess.PIPE)
     p.stdin.write(dot.encode('utf-8'))
     p.stdin.close()
 
-class ByFileAnalyzer(object):
+
+class ByFileAnalyzer:
     def analyze(self, args, patches):
         """
-        Find dependencies in a list of patches by looking at the files they
-        change.
+        Find dependencies in a list of patches by looking at the files they change.
 
         The algorithm is simple: Just keep a list of files changed, and mark
         two patches as conflicting when they change the same file.
@@ -400,12 +386,10 @@ class ByFileAnalyzer(object):
 
         return depends
 
-class ByLineAnalyzer(object):
+
+class ByLineAnalyzer:
     def analyze(self, args, patches):
-        """
-        Find dependencies in a list of patches by looking at the lines they
-        change.
-        """
+        """Find dependencies in a list of patches by looking at the lines they change."""
         # Per-file info on which patch last touched a particular line.
         # A dict of file => list of LineState objects
         state = dict()
@@ -417,7 +401,7 @@ class ByLineAnalyzer(object):
 
         for patch in patches:
             for f in patch.get_patch_set():
-                if not f.path in state:
+                if f.path not in state:
                     state[f.path] = ByLineFileAnalyzer(f.path, args.proximity)
 
                 state[f.path].analyze(depends, patch, f)
@@ -425,17 +409,17 @@ class ByLineAnalyzer(object):
         return depends
 
 
-class ByLineFileAnalyzer(object):
+class ByLineFileAnalyzer:
     """
     Helper class for the ByLineAnalyzer, that performs the analysis for
     a specific file. Created once and called for multiple patches.
     """
 
     # Used if a patch changes a line changed by another patch
-    DEPEND_HARD = Bunch(desc = 'hard', matrixmark = 'X', dotstyle = 'solid')
+    DEPEND_HARD = Bunch(desc='hard', matrixmark='X', dotstyle='solid')
     # Used if a patch changes a line changed near a line changed by
     # another patch
-    DEPEND_PROXIMITY = Bunch(desc = 'proximity', matrixmark = '*', dotstyle = 'dashed')
+    DEPEND_PROXIMITY = Bunch(desc='proximity', matrixmark='*', dotstyle='dashed')
 
     def __init__(self, fname, proximity):
         self.fname = fname
@@ -468,10 +452,9 @@ class ByLineFileAnalyzer(object):
 
     def line_state(self, lineno, create):
         """
-        Returns the state of the given (source) line number, creating a
+        Return the state of the given (source) line number, creating a
         new empty state if it is not yet present and create is True.
         """
-
         self.processed_idx += 1
         for state in self.line_list[self.processed_idx:]:
             # Found it, return
@@ -491,7 +474,7 @@ class ByLineFileAnalyzer(object):
 
         # We don't have state for this particular line, insert a
         # new empty state
-        state = self.LineState(lineno = lineno)
+        state = self.LineState(lineno=lineno)
         self.line_list.insert(self.processed_idx, state)
         return state
 
@@ -504,7 +487,6 @@ class ByLineFileAnalyzer(object):
         (up to but excluding self.processed_idx) with the old offset
         before changing it.
         """
-
         for state in self.line_list[self.to_update_idx:self.processed_idx]:
             state.lineno += self.offset
             self.to_update_idx += 1
@@ -512,8 +494,6 @@ class ByLineFileAnalyzer(object):
         self.offset += amount
 
     def analyze_hunk(self, depends, patch, hunk):
-        #print('\n'.join(map(str, self.line_list)))
-        #print('--')
         for change in hunk.changes:
             # When adding a line, don't bother creating a new line
             # state, since we'll be adding one anyway (this prevents
@@ -575,17 +555,13 @@ class ByLineFileAnalyzer(object):
                 if line_state.line is None:
                     line_state.line = change.target_line
 
-                # For context lines, only remember the line contents
-                #claim_after(in_change, change.
-                #in_change = False
-
             elif change.action == LINE_TYPE_ADD:
                 self.update_offset(1)
 
                 # Mark this line as changed by this patch
-                s = self.LineState(lineno = change.target_lineno_abs,
-                                   line = change.target_line,
-                                   changed_by = patch)
+                s = self.LineState(lineno=change.target_lineno_abs,
+                                   line=change.target_line,
+                                   changed_by=patch)
                 self.line_list.insert(self.processed_idx, s)
                 assert self.processed_idx == self.to_update_idx, "Not everything updated?"
 
@@ -616,7 +592,7 @@ class ByLineFileAnalyzer(object):
                 # Also add proximity deps for patches that touched code
                 # around this line
                 for p in line_state.proximity.values():
-                    if (not p in depends[patch]) and p != patch:
+                    if (p not in depends[patch]) and p != patch:
                         depends[patch][p] = self.DEPEND_PROXIMITY
 
                 # Forget about the state for this source line
@@ -630,8 +606,7 @@ class ByLineFileAnalyzer(object):
                 # state for lineno
                 i = self.to_update_idx
                 lineno = change.source_lineno_abs
-                if lineno == 0: # When a file is created, the source
-                                # line for the adds is 0...
+                if lineno == 0:  # When a file is created, the source line for the adds is 0...
                     lineno += 1
                 while (lineno - change.source_lineno_abs < self.proximity):
                     if (i >= len(self.line_list) or
@@ -647,9 +622,10 @@ class ByLineFileAnalyzer(object):
                     i += 1
                     lineno += 1
 
-    class LineState(object):
-        """ State of a particular line in a file """
-        def __init__(self, lineno, line = None, changed_by = None):
+    class LineState:
+        """State of a particular line in a file."""
+
+        def __init__(self, lineno, line=None, changed_by=None):
             self.lineno = lineno
             self.line = line
             self.changed_by = changed_by
@@ -717,7 +693,6 @@ def main():
     elif args.output == 'xdot':
         show_xdot(depends_dot(args, patches, depends))
 
+
 if __name__ == "__main__":
     main()
-
-# vim: set sw=4 sts=4 et:
