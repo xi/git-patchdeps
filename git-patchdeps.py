@@ -223,37 +223,7 @@ class Bunch:
         self.__dict__.update(kwds)
 
 
-class Changeset():
-    def get_patch_set(self):
-        """Return this changeset as a list of PatchedFiles."""
-        return parse_diff(self.get_diff())
-
-    def get_diff(self):
-        """Return the textual unified diff as an iterable of lines."""
-        raise NotImplementedError
-
-
-class PatchFile(Changeset):
-    def __init__(self, filename):
-        self.filename = filename
-
-    def get_diff(self):
-        f = open(self.filename, 'r', encoding='utf-8')
-        # Iterating over a file gives separate lines, with newlines
-        # included. We want those stripped off
-        return map(lambda x: x.rstrip('\n'), f)
-
-    @staticmethod
-    def get_changesets(args):
-        """Generate Changeset objects, given patch filenamesk."""
-        for filename in args:
-            yield PatchFile(filename)
-
-    def __str__(self):
-        return os.path.basename(self.filename)
-
-
-class GitRev(Changeset):
+class GitRev:
     def __init__(self, rev, msg):
         self.rev = rev
         self.msg = msg
@@ -264,6 +234,10 @@ class GitRev(Changeset):
         # not interested in the actual file contents and all diff
         # special characters are valid ascii).
         return str(diff, encoding='utf-8', errors='ignore').split('\n')
+
+    def get_patch_set(self):
+        """Return this changeset as a list of PatchedFiles."""
+        return parse_diff(self.get_diff())
 
     def __str__(self):
         return "%s (%s)" % (self.rev, self.msg)
@@ -639,20 +613,10 @@ class ByLineFileAnalyzer:
 
 def main():
     parser = argparse.ArgumentParser(description='Analyze patches for dependencies.')
-    parser.add_argument('--type', choices=['git', 'patches'], default='git',
-                        help="""Input type""")
     parser.add_argument('arguments', metavar="ARG", nargs='+', help="""
-                        Specification of patches to analyze, depending
-                        on the type given. When --git is given, this is
+                        Specification of patches to analyze. This is
                         passed to git rev-list as-is (so use a valid
-                        revision range, like HEAD^^..HEAD). When
-                        --patches is given, these are filenames of patch
-                        files.""")
-    parser.add_argument('--by-file', dest='analyzer', action='store_const',
-                        const=ByFileAnalyzer, default=ByLineAnalyzer, help="""
-                        Mark patches as conflicting when they change the
-                        same file (by default, they are conflicting when
-                        they change the same lines).""")
+                        revision range, like HEAD^^..HEAD).""")
     parser.add_argument('--proximity', default='2', metavar='LINES',
                         type=int, help="""
                         The number of lines changes should be apart to
@@ -669,12 +633,7 @@ def main():
 
     args = parser.parse_args()
 
-    if args.type == 'patches':
-        changeset_type = PatchFile
-    else:
-        changeset_type = GitRev
-
-    patches = list(changeset_type.get_changesets(args.arguments))
+    patches = list(GitRev.get_changesets(args.arguments))
 
     for i, p in enumerate(patches):
         p.number = i
