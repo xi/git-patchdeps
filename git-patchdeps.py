@@ -328,13 +328,6 @@ overlap=scale
     return res
 
 
-def show_xdot(dot):
-    """Show a given dot graph in xdot."""
-    p = subprocess.Popen(['xdot', '/dev/stdin'], stdin=subprocess.PIPE)
-    p.stdin.write(dot.encode('utf-8'))
-    p.stdin.close()
-
-
 class ByFileAnalyzer:
     def analyze(self, args, patches):
         """
@@ -628,7 +621,7 @@ def main():
                         Randomize the graph layout produced by
                         --depends-dot and --depends-xdot.""")
     parser.add_argument('--output', '-o', default='matrix',
-                        choices=['list', 'matrix', 'dot', 'xdot'],
+                        choices=['list', 'matrix', 'dot'],
                         help="""Output format""")
 
     args = parser.parse_args()
@@ -648,9 +641,6 @@ def main():
 
     elif args.output == 'dot':
         print(depends_dot(args, patches, depends))
-
-    elif args.output == 'xdot':
-        show_xdot(depends_dot(args, patches, depends))
 
 
 if __name__ == "__main__":
